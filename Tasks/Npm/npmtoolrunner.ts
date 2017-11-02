@@ -58,6 +58,7 @@ export class NpmToolRunner extends tr.ToolRunner {
         const execResult = super.execSync(options);
         this._restoreProjectNpmrc();
         if (execResult.code !== 0) {
+            this._logExecResults(execResult.code, execResult.stderr);
             this._printDebugLogSync(this._getDebugLogPath(options));
             throw new Error(tl.loc('NpmFailed', execResult.code));
         }
@@ -160,6 +161,23 @@ export class NpmToolRunner extends tr.ToolRunner {
         if (this.overrideProjectNpmrc) {
             tl.debug(tl.loc('RestoringProjectNpmrc'));
             util.restoreFile(this.projectNpmrc());
+        }
+    }
+
+    private _logExecResults(exitCode: number, stderr: string){
+        try{
+            console.log("##vso[telemetry.publish area=Packaging;feature=Npm]%s",
+            JSON.stringify({
+                'SYSTEM_JOBID': tl.getVariable('SYSTEM_JOBID'),
+                'SYSTEM_PLANID': tl.getVariable('SYSTEM_PLANID'),
+                'SYSTEM_COLLECTIONID': tl.getVariable('SYSTEM_COLLECTIONID'),
+                'command': tl.getVariable(NpmTaskInput.Command),
+                'arguments': tl.getVariable(NpmTaskInput.CustomCommand),
+                'exitCode': exitCode,
+                'stderr': (stderr) ? stderr.substr(0, 1024) : null
+            }));
+        }catch(err) {
+            tl.debug(`Unable to log telemetry. Err:( ${err} )`);
         }
     }
 }
